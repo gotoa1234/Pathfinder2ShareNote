@@ -313,6 +313,10 @@ input, select, textarea {
 		text-align: right;
 	}
 
+    .vertical-align-middle {
+        vertical-align: middle;
+    }
+
 /* Form */
 
 	form {
