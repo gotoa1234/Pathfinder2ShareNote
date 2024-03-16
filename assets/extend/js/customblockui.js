@@ -7,7 +7,7 @@ if (element) {
     element.style.left = "0";
     element.style.width = "100%";
     element.style.height = "100%";
-    element.style.opacity = "0.50";
+    element.style.opacity = "0.90";
     element.style.zIndex = "9999";
 }
 
@@ -27,7 +27,7 @@ if (HomeBg) {
     HomeBg.style.left = "0";
     HomeBg.style.width = "100%";
     HomeBg.style.height = "100%";
-    HomeBg.style.opacity = "0.25";
+    HomeBg.style.opacity = "0.35";
     HomeBg.style.zIndex = "2";
 }
 

@@ -72,6 +72,11 @@
 		// Methods.
 			$main._show = function(id, initial) {
 
+				// 預先檢查，避免連續點擊
+				if (locked) {
+					return;
+				}
+
 				var $article = $main_articles.filter('#' + id);
 
 				// No such article? Bail.
@@ -198,6 +203,11 @@
 			};
 
 			$main._hide = function(addState) {
+
+				// 預先檢查，避免連續點擊
+				if (locked) {
+					return;
+				}
 
 				var $article = $main_articles.filter('.active');
 

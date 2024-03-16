@@ -1,34 +1,39 @@
 //初始化
-async function indexedDBUtilInitinalize()
-{    
-    showBlockUI();   
-    checkIndexedDB().then(function (result) {
-        if (result.versionChanged || result.empty) {
-            //需要更新
-            console.log('working');
-            fetchDataAndStoreInIndexedDB().then(function () {
+async function indexedDBUtilInitinalize() {
+    return new Promise((resolve, reject) => {
+        try {
+            showBlockUI();
+            fetchDataAndStoreInIndexedDB().then(() => {
+                hideBlockUI();                
+                getDb_Data_All().then(function (result) {
+                    if (result.length === 0) {
+                        console.log('查無資料');
+                    } else {
+                        saveToSessionStorage('globalSpellBooks', result);
+                    }
+                }).catch(function (error)
+                {
+                    console.log('Books 資料異常' + error);
+                });
+
+                resolve('Init Success.');
+            }).catch(error => {
+                console.error("Error in fetchDataAndStoreInIndexedDB():", error);
                 hideBlockUI();
-            }).catch(function (error) {
-                console.error("Error fetchDataAndStoreInIndexedDB():", error);
-                hideBlockUI();
+                reject(error);
             });
+        } catch (error) {
+            console.error("Error in indexedDBUtilInitinalize():", error);
+            hideBlockUI();
+            reject(error);
         }
-        else
-        {
-           hideBlockUI();
-        }
-    })
-    .catch(function (error) {
-        console.error("Error checking IndexedDB:", error);
-        hideBlockUI();
     });
 }
 
 //設定檔
 async function getFunctionProperties() {
-    const fileVersion = await getVersionFile();
     return {
-        fileVersion: fileVersion,
+        fileVersion: 1,
         dbName: 'pathfinderShareNote-database',
         storeName: 'magicStore'
     };
@@ -40,7 +45,7 @@ async function getSpellModelFile() {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', 'assets/extend/jsonFile/SpellModel.json', true);
         xhr.responseType = 'arraybuffer';
-        xhr.onload = function () {            
+        xhr.onload = function () {
             var uint8Array = new Uint8Array(this.response);
             // 資料轉為字串
             var jsonString = new TextDecoder().decode(uint8Array);
@@ -48,21 +53,6 @@ async function getSpellModelFile() {
             var jsonObject = JSON.parse(jsonString);
             // 返回資料
             resolve(jsonObject);
-        };
-        xhr.send();
-    });
-}
-
-async function getVersionFile() {
-    return new Promise(function (resolve, reject) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', 'assets/extend/jsonfile/Version.json', true);
-        xhr.responseType = 'arraybuffer';
-        xhr.onload = function () {
-            var uint8Array = new Uint8Array(this.response);            
-            var jsonString = new TextDecoder().decode(uint8Array);            
-            var jsonObject = JSON.parse(jsonString);            
-            resolve(jsonObject.Version);
         };
         xhr.send();
     });
@@ -96,11 +86,9 @@ async function checkIndexedDB() {
 
                 countRequest.onsuccess = function () {
                     var count = countRequest.result;
-                    if (count === 0) {
-                        // 資料空，重新抓資料
+                    if (count === 0) { // 資料空，重新抓資料
                         resolve({ empty: true });
-                    } else {
-                        // 不異動
+                    } else {// 不異動
                         resolve({ versionChanged: false, empty: false });
                     }
                 };
@@ -114,19 +102,11 @@ async function checkIndexedDB() {
 }
 
 async function fetchDataAndStoreInIndexedDB() {
-    var config = await getFunctionProperties();
-    var spellModelJson = await getSpellModelFile();
-
     return new Promise(function (resolve, reject) {
-        var config;
-        var spellModelJson;
-
         // 首先，執行所有非同步操作並等待它們完成
-        Promise.all([getFunctionProperties(), getSpellModelFile()])
+        Promise.all([getFunctionProperties()])
             .then(function (results) {
-                config = results[0];
-                spellModelJson = results[1];
-
+                var config = results[0];
                 var request = indexedDB.open(config.dbName, config.fileVersion);
 
                 request.onerror = function (event) {
@@ -148,34 +128,38 @@ async function fetchDataAndStoreInIndexedDB() {
 
                 request.onsuccess = function (event) {
                     var db = event.target.result;
-
                     if (db.objectStoreNames.contains([config.storeName])) {
                         var transaction = db.transaction([config.storeName], 'readwrite');
                         var objectStore = transaction.objectStore(config.storeName);
+                        var countRequest = objectStore.count();
 
-                        // 3-1. 删除之前存储的数据
-                        var clearRequest = objectStore.clear();
-
-                        // 3-2. 新增資料
-                        for (let index = 0; index < spellModelJson.length; index++) {
-                            var item = spellModelJson[index];
-                            var newItem = {
-                                SpellClass: item.SpellClass,
-                                SpellLevel: item.SpellLevel,                                
-                                Name: item.Name,
-                                HtmlId: item.HtmlId
-                            };
-                            objectStore.add(newItem);
-                        }
-
-                        // 3-3. 刪除資料內容時的訊息
-                        clearRequest.onsuccess = function () {
-                            console.info("Clear Database Successful.");
-                        };
-
-                        // 3-4. 刪除資料內容失敗時的訊息
-                        clearRequest.onerror = function (event) {
-                            console.error('Clear Database error:', event.target.errorCode);
+                        countRequest.onsuccess = function () {
+                            var count = countRequest.result;
+                            if (count === 0) { // 資料空，重新抓資料
+                                // 3-1. 新增資料
+                                getSpellModelFile().then(function (spellModelJson) {
+                                    // 新增資料
+                                    var transaction2 = db.transaction([config.storeName], 'readwrite');
+                                    var objectStore2 = transaction2.objectStore(config.storeName);
+                                    // 新增資料
+                                    for (let index = 0; index < spellModelJson.length; index++) {
+                                        var item = spellModelJson[index];
+                                        var newItem = {
+                                            SpellClass: item.SpellClass,
+                                            SpellLevel: item.SpellLevel,
+                                            Name: item.Name,
+                                            HtmlId: item.HtmlId
+                                        };
+                                        objectStore2.add(newItem);
+                                    }
+                                    saveToSessionStorage('globalSpellBooks', spellModelJson);
+                                    debugger;
+                                }).catch(function (error) {
+                                    console.error("Error fetching spell model file:", error);
+                                });
+                            } else {// 不異動
+                                resolve({ versionChanged: false, empty: false });
+                            }
                         };
                     }
 
@@ -195,17 +179,15 @@ async function fetchDataAndStoreInIndexedDB() {
     });
 }
 
-//實現查詢IndexedDB 內的索引資料 TODO: 尚未完整，只是範例
+//實現查詢IndexedDB 內的索引資料
 async function getDb_Name_Level_SpellClass_Data(searchSpellLevel, searchSpellClass, searchName) {
-    var config = await getFunctionProperties();
-
     return new Promise(function (resolve, reject) {
         var config;
 
         // 首先，執行所有非同步操作並等待它們完成
         Promise.all([getFunctionProperties()])
             .then(function (results) {
-                config = results[0];                
+                config = results[0];
 
                 var request = indexedDB.open(config.dbName, config.fileVersion);
 
@@ -218,7 +200,7 @@ async function getDb_Name_Level_SpellClass_Data(searchSpellLevel, searchSpellCla
                     // 開始交易
                     var transaction = db.transaction([config.storeName], 'readwrite');
                     var objectStore = transaction.objectStore(config.storeName);
-                    
+
                     // 查詢資料（使用索引）
                     var index = objectStore.index("Name_SpellLevel_SpellClass");
                     var request2 = index.openCursor();
@@ -249,12 +231,10 @@ async function getDb_Name_Level_SpellClass_Data(searchSpellLevel, searchSpellCla
 
 //實現查詢IndexedDB 內的索引資料
 async function getDb_Level_SpellClass_Data(searchSpellLevel, searchSpellClass) {
-    var config = await getFunctionProperties();
-
     return new Promise(function (resolve, reject) {
         var config;
 
-        // 首先，執行所有非同步操作並等待它們完成
+        // 執行所有非同步操作並等待它們完成
         Promise.all([getFunctionProperties()])
             .then(function (results) {
                 config = results[0];
@@ -270,7 +250,7 @@ async function getDb_Level_SpellClass_Data(searchSpellLevel, searchSpellClass) {
                     // 開始交易
                     var transaction = db.transaction([config.storeName], 'readwrite');
                     var objectStore = transaction.objectStore(config.storeName);
-                    
+
                     // 查詢資料（使用索引）
                     var index = objectStore.index("SpellLevel_SpellClass");
                     var request2 = index.openCursor();
@@ -282,13 +262,46 @@ async function getDb_Level_SpellClass_Data(searchSpellLevel, searchSpellClass) {
                         if (cursor) {
                             var value = cursor.value;
                             if (value.SpellLevel === searchSpellLevel &&
-                                value.SpellClass === searchSpellClass ) {
+                                value.SpellClass === searchSpellClass) {
                                 foundEntries.push(value);
                             }
                             cursor.continue();
                         } else {
                             resolve(foundEntries);
                         }
+                    };
+                };
+            })
+            .catch(function (error) {
+                console.error("Error fetching data and storing in IndexedDB:", error);
+                reject("Error fetching data and storing in IndexedDB");
+            });
+    });
+}
+
+//實現查詢IndexedDB 內的全部資料
+async function getDb_Data_All() {
+    return new Promise(function (resolve, reject) {
+        var config;
+        Promise.all([getFunctionProperties()])
+            .then(function (results) {
+                config = results[0];
+                var request = indexedDB.open(config.dbName, config.fileVersion);
+                request.onerror = function (event) {
+                    reject("Error opening getDbData(): " + event.target.errorCode);
+                };
+
+                request.onsuccess = function (event) {
+                    var db = event.target.result;
+                    // 開始交易
+                    var transaction = db.transaction([config.storeName], 'readonly');
+                    var objectStore = transaction.objectStore(config.storeName);
+
+                    // 取出所有資料
+                    var request2 = objectStore.getAll();
+                    request2.onsuccess = function (event) {
+                        var allData = event.target.result;
+                        resolve(allData);
                     };
                 };
             })
