@@ -258,19 +258,19 @@ input, select, textarea {
 		margin: 0 0 2rem 0;
 		padding: 0.5rem 0 0.5rem 2rem;
 	}
-
+/*
 		blockquote > div img {
 			max-width: 80%;
 			height: 80%;
 		}
-
+*/
         /* 在螢幕寬度小於600px時，圖片大小設置為50% */
-        @media screen and (max-width: 600px) {
+        /*@media screen and (max-width: 600px) {
 			blockquote > div img {
 				width: 50%;
 				height: 50%;
 			}
-        }
+        }*/
 
 	code {
 		background: rgba(255, 255, 255, 0.075);
