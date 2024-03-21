@@ -428,6 +428,23 @@
 						linkButton.addEventListener('click', function (event) {
 							var checkBoxElemt = document.getElementById('CheckBox_' + event.target.value);
 							checkBoxElemt.checked = true;
+							
+							// 將我的法術書轉化為法術卡的下拉選單內容項目
+                            var currentMySpellBooks = getFromSessionStorageSpellBooks();;
+							var allDataJsonDatas = JSON.parse(sessionStorage.getItem('globalSpellBooks'));
+							var newSelection = [];
+							currentMySpellBooks.forEach(spellItem => {
+                                var currentSpellId = spellItem.replace('CheckBox_', '');
+                                var desiredSpell = allDataJsonDatas.find(spell => spell.HtmlId === currentSpellId);
+								if (desiredSpell) {
+									newSelection.push(desiredSpell);
+								}
+							});
+                            saveToSessionStorage('globalRecords', newSelection);
+							saveToSessionStorage('globalCurrentArticleId', event.target.value);
+
+                            // 配置當前的 Article
+                            MiddleArticleDropdownList();
 						});
 
 						var deleteCell = document.createElement('td');
